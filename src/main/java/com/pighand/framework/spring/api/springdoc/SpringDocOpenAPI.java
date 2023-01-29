@@ -25,7 +25,11 @@ public class SpringDocOpenAPI {
     private DocInfo docInfo = SpringDocInfo.docInfo;
     private Map<String, String> refMapping = SpringDocInfo.refMapping;
 
+    private OpenAPI openApi;
+
     public SpringDocOpenAPI(OpenAPI openApi) {
+        this.openApi = openApi;
+
         if (refMapping.size() == 0) {
             return;
         }
@@ -70,11 +74,13 @@ public class SpringDocOpenAPI {
 
         requestBody.forEach(
                 (contentType, item) -> {
-                    String refName = item.getSchema().get$ref();
+                    Schema oldSchema = item.getSchema();
+                    String refName = oldSchema.get$ref();
                     Schema schema = requestSchema(methodInfo.getMethodFieldGroupNames(), refName);
 
                     if (schema != null) {
-                        item.setSchema(schema);
+                        oldSchema.set$ref(schema.getName());
+                        item.schema(oldSchema);
                     }
                 });
 
@@ -83,11 +89,13 @@ public class SpringDocOpenAPI {
                 Optional.ofNullable(operation.getParameters()).orElse(new ArrayList(0));
         parameters.forEach(
                 parameter -> {
-                    String refName = parameter.getSchema().get$ref();
+                    Schema oldSchema = parameter.getSchema();
+                    String refName = oldSchema.get$ref();
                     Schema schema = requestSchema(methodInfo.getMethodFieldGroupNames(), refName);
 
                     if (schema != null) {
-                        parameter.setSchema(schema);
+                        oldSchema.set$ref(schema.getName());
+                        parameter.setSchema(oldSchema);
                     }
                 });
 
@@ -107,7 +115,9 @@ public class SpringDocOpenAPI {
                                                 methodInfo.getReturnType());
 
                                 if (schema != null) {
-                                    item.setSchema(schema);
+                                    Schema oldSchema = item.getSchema();
+                                    oldSchema.set$ref(schema.getName());
+                                    item.setSchema(oldSchema);
                                 }
                             });
                 });
@@ -216,7 +226,9 @@ public class SpringDocOpenAPI {
                         formatGroupNames.add(fieldInfo.getFileGroupName());
                     });
 
-            schema.setDescription(schema.getName() + " -> " + String.join(" ,", formatGroupNames));
+            // 将新schema添加到文档中
+            schema.setName(schema.getName() + " -> " + String.join(" ,", formatGroupNames));
+            openApi.schema(schema.getName(), schema);
 
             if (mainSchemaName.equals(schemaClassName)) {
                 mainSchema = schema;
