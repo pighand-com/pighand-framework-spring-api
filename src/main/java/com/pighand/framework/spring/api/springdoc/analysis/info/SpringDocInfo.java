@@ -1,4 +1,4 @@
-package com.pighand.framework.spring.api.springdoc;
+package com.pighand.framework.spring.api.springdoc.analysis.info;
 
 import java.util.HashMap;
 import java.util.HashSet;

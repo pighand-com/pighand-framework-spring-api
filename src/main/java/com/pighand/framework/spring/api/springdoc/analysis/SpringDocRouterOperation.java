@@ -1,7 +1,12 @@
-package com.pighand.framework.spring.api.springdoc;
+package com.pighand.framework.spring.api.springdoc.analysis;
 
 import com.pighand.framework.spring.api.annotation.*;
 import com.pighand.framework.spring.api.annotation.field.*;
+import com.pighand.framework.spring.api.springdoc.analysis.info.FieldGroupType;
+import com.pighand.framework.spring.api.springdoc.analysis.info.FieldInfo;
+import com.pighand.framework.spring.api.springdoc.analysis.info.MethodInfo;
+import com.pighand.framework.spring.api.springdoc.analysis.info.SpringDocInfo;
+import com.pighand.framework.spring.api.springdoc.utils.DocFieldGroupUrl;
 import org.springdoc.core.fn.RouterOperation;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.RequestMethod;

@@ -1,7 +1,7 @@
 package com.pighand.framework.spring.api;
 
 import com.pighand.framework.spring.api.springdoc.SpringDocOpenAPI;
-import com.pighand.framework.spring.api.springdoc.SpringDocRouterOperation;
+import com.pighand.framework.spring.api.springdoc.analysis.SpringDocRouterOperation;
 import org.springdoc.core.customizers.OpenApiCustomizer;
 import org.springdoc.core.customizers.RouterOperationCustomizer;
 import org.springframework.context.annotation.Bean;
@@ -13,8 +13,14 @@ import org.springframework.context.annotation.Configuration;
  * <p>需要再Application中增加以下内容，来获取schema对应的class信息
  *
  * <p><code>
- * @Bean public PropertyCustomizer propertyCustomizer() {
+ * @Bean
+ * public PropertyCustomizer propertyCustomizer() {
  *  return (schema, annotatedType) -> SpringDocProperty.analysis(schema, annotatedType);
+ * }
+ *
+ * @Bean
+ * public ParameterCustomizer propertyCustomizers() {
+ *  return (parameterModel, methodParameter) -> SpringDocParameter.analysis(parameterModel, methodParameter);
  * }
  * </code>
  *

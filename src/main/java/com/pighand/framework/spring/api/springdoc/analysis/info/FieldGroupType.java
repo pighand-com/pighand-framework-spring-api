@@ -1,4 +1,4 @@
-package com.pighand.framework.spring.api.springdoc;
+package com.pighand.framework.spring.api.springdoc.analysis.info;
 
 /**
  * 字段分组的类型

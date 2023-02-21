@@ -1,5 +1,11 @@
 package com.pighand.framework.spring.api.springdoc;
 
+import com.pighand.framework.spring.api.springdoc.analysis.AnalysisScheam;
+import com.pighand.framework.spring.api.springdoc.analysis.info.DocInfo;
+import com.pighand.framework.spring.api.springdoc.analysis.info.FieldInfo;
+import com.pighand.framework.spring.api.springdoc.analysis.info.MethodInfo;
+import com.pighand.framework.spring.api.springdoc.analysis.info.SpringDocInfo;
+import com.pighand.framework.spring.api.springdoc.utils.DocFieldGroupUrl;
 import io.swagger.v3.core.converter.AnnotatedType;
 import io.swagger.v3.core.converter.ModelConverters;
 import io.swagger.v3.core.converter.ResolvedSchema;
@@ -355,8 +361,7 @@ public class SpringDocOpenAPI {
                     }
 
                     if (StringUtils.hasText(propertySchemaRef)) {
-                        String schemaBeanName =
-                                SpringDocProperty.refName2BeanName(propertySchemaRef);
+                        String schemaBeanName = AnalysisScheam.refName2BeanName(propertySchemaRef);
                         Schema propertyNewSchema = newSchemas.get(schemaBeanName);
 
                         if (propertyNewSchema != null
