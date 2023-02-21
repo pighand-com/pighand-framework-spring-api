@@ -67,6 +67,22 @@ public class SpringDocOpenAPI {
         }
 
         // 重写request body
+        this.rewriteRequestBody(operation, methodInfo);
+
+        // 重写request params
+        this.rewriteRequestParams(operation, methodInfo);
+
+        // 重写response
+        this.rewriteResponses(operation, methodInfo);
+    }
+
+    /**
+     * 重写request body
+     *
+     * @param operation
+     * @param methodInfo
+     */
+    private void rewriteRequestBody(Operation operation, MethodInfo methodInfo) {
         Content requestBody =
                 Optional.ofNullable(operation.getRequestBody())
                         .map(RequestBody::getContent)
@@ -75,6 +91,11 @@ public class SpringDocOpenAPI {
         requestBody.forEach(
                 (contentType, item) -> {
                     Schema oldSchema = item.getSchema();
+
+                    if (null == oldSchema) {
+                        return;
+                    }
+
                     String refName = oldSchema.get$ref();
                     Schema schema = requestSchema(methodInfo.getMethodFieldGroupNames(), refName);
 
@@ -83,25 +104,94 @@ public class SpringDocOpenAPI {
                         item.schema(oldSchema);
                     }
                 });
+    }
 
-        // 重写request params
+    /**
+     * 重写request params
+     *
+     * @param operation
+     * @param methodInfo
+     */
+    private void rewriteRequestParams(Operation operation, MethodInfo methodInfo) {
         List<Parameter> parameters =
                 Optional.ofNullable(operation.getParameters()).orElse(new ArrayList(0));
+
+        // request params
+        List<Parameter> requestParameters = new ArrayList<>(parameters.size());
+
+        // request schema to params
+        List<Parameter> schemaParameters = new ArrayList<>(parameters.size());
+
         parameters.forEach(
                 parameter -> {
                     Schema oldSchema = parameter.getSchema();
+
+                    if (null == oldSchema) {
+                        requestParameters.add(parameter);
+                        return;
+                    }
+
                     String refName = oldSchema.get$ref();
                     Schema schema = requestSchema(methodInfo.getMethodFieldGroupNames(), refName);
 
                     if (schema != null) {
+                        // 更新新的schema
                         oldSchema.set$ref(schema.getName());
                         parameter.setSchema(oldSchema);
+
+                        // 根据schema生成params
+                        schemaParameters.addAll(schema2Parameters(schema));
                     }
                 });
 
-        // 重写response
+        // 如果存在schema。将schema转为params
+        if (schemaParameters.size() > 0) {
+            schemaParameters.addAll(requestParameters);
+            operation.setParameters(schemaParameters);
+        }
+    }
+
+    /**
+     * 根据schema生成parameters
+     *
+     * @param schema
+     * @return
+     */
+    private List<Parameter> schema2Parameters(Schema schema) {
+        Map<String, Schema> properties = schema.getProperties();
+
+        List<Parameter> parameter = new ArrayList<>(properties.size());
+
+        properties
+                .keySet()
+                .forEach(
+                        key -> {
+                            Schema temSchema = properties.get(key);
+
+                            Parameter newParameter = new Parameter();
+                            newParameter.in("query");
+                            newParameter.name(key);
+                            newParameter.description(temSchema.getDescription());
+                            newParameter.required(schema.getRequired().contains(key));
+                            newParameter.example(temSchema.getExample());
+                            newParameter.schema(temSchema);
+
+                            parameter.add(newParameter);
+                        });
+
+        return parameter;
+    }
+
+    /**
+     * 重写response
+     *
+     * @param operation
+     * @param methodInfo
+     */
+    private void rewriteResponses(Operation operation, MethodInfo methodInfo) {
         ApiResponses apiResponses =
                 Optional.ofNullable(operation.getResponses()).orElse(new ApiResponses());
+
         apiResponses.forEach(
                 (key, value) -> {
                     Content responseContent =
