@@ -153,7 +153,7 @@ public class SpringDocOpenAPI {
             ResolvedSchema resolvedSchema = createSchema(clz);
 
             return this.formatSchema("request", methodGroupNames, resolvedSchema);
-        } catch (ClassNotFoundException e) {
+        } catch (Exception e) {
             return null;
         }
     }
@@ -269,7 +269,8 @@ public class SpringDocOpenAPI {
                                 SpringDocProperty.refName2BeanName(propertySchemaRef);
                         Schema propertyNewSchema = newSchemas.get(schemaBeanName);
 
-                        if (propertyNewSchema != null) {
+                        if (propertyNewSchema != null
+                                && !"json".equals(propertyNewSchema.getFormat())) {
                             propertyNewSchema = this.mergeMainSchema(propertyNewSchema, newSchemas);
 
                             properties.put(propertyName, propertyNewSchema);
