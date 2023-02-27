@@ -20,7 +20,7 @@ public class SpringDocProperty {
     public static Schema analysis(Schema schema, AnnotatedType annotatedType) {
         String refName = schema.get$ref();
 
-        AnalysisScheam.schema2Map(refName, annotatedType.getType().getTypeName());
+        AnalysisSchema.schema2Map(refName, annotatedType.getType().getTypeName());
 
         return schema;
     }

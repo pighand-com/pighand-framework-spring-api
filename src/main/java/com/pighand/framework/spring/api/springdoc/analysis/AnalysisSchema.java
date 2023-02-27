@@ -8,7 +8,7 @@ import org.springframework.util.StringUtils;
  *
  * @author wangshuli
  */
-public class AnalysisScheam {
+public class AnalysisSchema {
 
     /**
      * schema refName to beanName
@@ -35,7 +35,7 @@ public class AnalysisScheam {
             SpringDocInfo.refMapping.put(refName, className);
 
             // put beanName
-            SpringDocInfo.refMapping.put(AnalysisScheam.refName2BeanName(refName), className);
+            SpringDocInfo.refMapping.put(AnalysisSchema.refName2BeanName(refName), className);
         }
     }
 }

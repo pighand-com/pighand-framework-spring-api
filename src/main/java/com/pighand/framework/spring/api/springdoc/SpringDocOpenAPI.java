@@ -1,6 +1,6 @@
 package com.pighand.framework.spring.api.springdoc;
 
-import com.pighand.framework.spring.api.springdoc.analysis.AnalysisScheam;
+import com.pighand.framework.spring.api.springdoc.analysis.AnalysisSchema;
 import com.pighand.framework.spring.api.springdoc.analysis.info.DocInfo;
 import com.pighand.framework.spring.api.springdoc.analysis.info.FieldInfo;
 import com.pighand.framework.spring.api.springdoc.analysis.info.MethodInfo;
@@ -361,7 +361,7 @@ public class SpringDocOpenAPI {
                     }
 
                     if (StringUtils.hasText(propertySchemaRef)) {
-                        String schemaBeanName = AnalysisScheam.refName2BeanName(propertySchemaRef);
+                        String schemaBeanName = AnalysisSchema.refName2BeanName(propertySchemaRef);
                         Schema propertyNewSchema = newSchemas.get(schemaBeanName);
 
                         if (propertyNewSchema != null

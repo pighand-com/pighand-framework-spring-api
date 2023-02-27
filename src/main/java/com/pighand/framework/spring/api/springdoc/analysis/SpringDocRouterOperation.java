@@ -285,29 +285,50 @@ public class SpringDocRouterOperation {
                 Optional.ofNullable(SpringDocInfo.docInfo.getClass2FieldMapping().get(className))
                         .orElse(new HashMap<>(0));
 
-        for (String groupName : groupNames) {
-            FieldInfo fieldInfo =
-                    Optional.ofNullable(groupMap.get(groupName)).orElse(new FieldInfo());
-            fieldInfo.setFileGroupName(groupName);
+        if (groupNames == null || groupNames.length == 0) {
+            // 未设置group name，添加至所有group
+            groupMap.forEach(
+                    (fileGroupName, fieldInfo) ->
+                            this.addToFieldInfo(type, fieldInfo, fieldName, isRequired));
+        } else {
+            // 根据group name添加
+            for (String groupName : groupNames) {
+                FieldInfo fieldInfo =
+                        Optional.ofNullable(groupMap.get(groupName)).orElse(new FieldInfo());
+                fieldInfo.setFileGroupName(groupName);
 
-            switch (type) {
-                case REQUEST -> {
-                    fieldInfo.getRequestFields().add(fieldName);
-                    if (isRequired) {
-                        fieldInfo.getRequestRequiredFields().add(fieldName);
-                    }
-                }
-                case RESPONSE -> {
-                    fieldInfo.getResponseFields().add(fieldName);
-                    if (isRequired) {
-                        fieldInfo.getResponseRequiredFields().add(fieldName);
-                    }
-                }
-                case REQUEST_EXCEPTION -> fieldInfo.getRequestExceptionFields().add(fieldName);
-                case RESPONSE_EXCEPTION -> fieldInfo.getResponseExceptionFields().add(fieldName);
+                this.addToFieldInfo(type, fieldInfo, fieldName, isRequired);
+
+                SpringDocInfo.docInfo.setClass2FieldMapping(className, groupName, fieldInfo);
             }
+        }
+    }
 
-            SpringDocInfo.docInfo.setClass2FieldMapping(className, groupName, fieldInfo);
+    /**
+     * 添加字段信息
+     *
+     * @param type
+     * @param fieldInfo
+     * @param fieldName
+     * @param isRequired
+     */
+    private void addToFieldInfo(
+            FieldGroupType type, FieldInfo fieldInfo, String fieldName, boolean isRequired) {
+        switch (type) {
+            case REQUEST -> {
+                fieldInfo.getRequestFields().add(fieldName);
+                if (isRequired) {
+                    fieldInfo.getRequestRequiredFields().add(fieldName);
+                }
+            }
+            case RESPONSE -> {
+                fieldInfo.getResponseFields().add(fieldName);
+                if (isRequired) {
+                    fieldInfo.getResponseRequiredFields().add(fieldName);
+                }
+            }
+            case REQUEST_EXCEPTION -> fieldInfo.getRequestExceptionFields().add(fieldName);
+            case RESPONSE_EXCEPTION -> fieldInfo.getResponseExceptionFields().add(fieldName);
         }
     }
 }

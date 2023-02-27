@@ -23,7 +23,7 @@ public class SpringDocParameter {
 
         String refName = parameterModel.getSchema().get$ref();
 
-        AnalysisScheam.schema2Map(refName, methodParameter.getParameterType().getTypeName());
+        AnalysisSchema.schema2Map(refName, methodParameter.getParameterType().getTypeName());
 
         return parameterModel;
     }
