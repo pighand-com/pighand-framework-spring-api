@@ -2,7 +2,9 @@ package com.pighand.framework.spring.api.springdoc.analysis.info;
 
 import lombok.Data;
 
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -20,4 +22,7 @@ public class FieldInfo {
     private Set<String> responseFields = new HashSet<>();
     private Set<String> responseRequiredFields = new HashSet<>();
     private Set<String> responseExceptionFields = new HashSet<>();
+
+    /** {fieldName: notNull group name} */
+    private Map<String, Set<String>> requestNotNullGroupNames = new HashMap<>();
 }

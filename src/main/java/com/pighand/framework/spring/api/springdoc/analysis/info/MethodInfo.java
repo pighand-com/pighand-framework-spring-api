@@ -21,4 +21,5 @@ public class MethodInfo {
     private Type returnType;
     private List<Parameter> parameters;
     private Set<String> methodFieldGroupNames;
+    private Set<String> validationGroupNames;
 }

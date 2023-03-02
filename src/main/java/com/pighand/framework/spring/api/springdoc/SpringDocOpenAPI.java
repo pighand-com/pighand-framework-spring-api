@@ -103,7 +103,11 @@ public class SpringDocOpenAPI {
                     }
 
                     String refName = oldSchema.get$ref();
-                    Schema schema = requestSchema(methodInfo.getMethodFieldGroupNames(), refName);
+                    Schema schema =
+                            requestSchema(
+                                    methodInfo.getMethodFieldGroupNames(),
+                                    methodInfo.getValidationGroupNames(),
+                                    refName);
 
                     if (schema != null) {
                         oldSchema.set$ref(schema.getName());
@@ -138,7 +142,11 @@ public class SpringDocOpenAPI {
                     }
 
                     String refName = oldSchema.get$ref();
-                    Schema schema = requestSchema(methodInfo.getMethodFieldGroupNames(), refName);
+                    Schema schema =
+                            requestSchema(
+                                    methodInfo.getMethodFieldGroupNames(),
+                                    methodInfo.getValidationGroupNames(),
+                                    refName);
 
                     if (schema != null) {
                         // 更新新的schema
@@ -234,10 +242,12 @@ public class SpringDocOpenAPI {
      * 处理request schema
      *
      * @param methodGroupNames
+     * @param validationGroupNames
      * @param refName
      * @return 返回设置后的schema；没有对应的group，返回null
      */
-    private Schema requestSchema(Set<String> methodGroupNames, String refName) {
+    private Schema requestSchema(
+            Set<String> methodGroupNames, Set<String> validationGroupNames, String refName) {
         if (!StringUtils.hasText(refName)) {
             return null;
         }
@@ -248,7 +258,8 @@ public class SpringDocOpenAPI {
             Class clz = Class.forName(refClassName);
             ResolvedSchema resolvedSchema = createSchema(clz);
 
-            return this.formatSchema("request", methodGroupNames, resolvedSchema);
+            return this.formatSchema(
+                    "request", methodGroupNames, validationGroupNames, resolvedSchema);
         } catch (Exception e) {
             return null;
         }
@@ -264,7 +275,7 @@ public class SpringDocOpenAPI {
     private Schema responseSchema(Set<String> methodGroupNames, Type returnType) {
         ResolvedSchema resolvedSchema = createSchema(returnType);
 
-        return this.formatSchema("response", methodGroupNames, resolvedSchema);
+        return this.formatSchema("response", methodGroupNames, null, resolvedSchema);
     }
 
     /**
@@ -272,11 +283,15 @@ public class SpringDocOpenAPI {
      *
      * @param type request、response
      * @param methodGroupNames
+     * @param validationGroupNames
      * @param resolvedSchema new schema
      * @return 返回设置后的schema；没有对应的group，返回null
      */
     private Schema formatSchema(
-            String type, Set<String> methodGroupNames, ResolvedSchema resolvedSchema) {
+            String type,
+            Set<String> methodGroupNames,
+            Set<String> validationGroupNames,
+            ResolvedSchema resolvedSchema) {
         // 解析的bean对应的schema
         Schema mainSchema = resolvedSchema.schema;
         String mainSchemaName = mainSchema.getName();
@@ -315,15 +330,24 @@ public class SpringDocOpenAPI {
                                 type.equals("request")
                                         ? fieldInfo.getRequestExceptionFields()
                                         : fieldInfo.getResponseExceptionFields();
+                        Map<String, Set<String>> requestNotNullGroupNames =
+                                fieldInfo.getRequestNotNullGroupNames();
 
                         // 根据group，设置schema
-                        this.setSchemaFiled(schema, fields, requiredFields, exceptionFields);
+                        this.setSchemaFiled(
+                                schema,
+                                fields,
+                                requiredFields,
+                                exceptionFields,
+                                requestNotNullGroupNames,
+                                validationGroupNames);
 
                         formatGroupNames.add(fieldInfo.getFileGroupName());
                     });
 
             // 将新schema添加到文档中
-            schema.setName(schema.getName() + " -> " + String.join(" ,", formatGroupNames));
+            schema.setName(
+                    type + " ->" + schema.getName() + " -> " + String.join(" ,", formatGroupNames));
             openApi.schema(schema.getName(), schema);
 
             if (mainSchemaName.equals(schemaClassName)) {
@@ -384,17 +408,16 @@ public class SpringDocOpenAPI {
      * @param fields 需要显示的字段
      * @param requiredFields 必填的字段
      * @param exceptionFields 不显示的字段
+     * @param requestNotNullGroupNames notNull字段group name
+     * @param validationGroupNames class function validation group name
      */
     private void setSchemaFiled(
             Schema schema,
             Set<String> fields,
             Set<String> requiredFields,
-            Set<String> exceptionFields) {
-
-        // 设置必填字段
-        if (!requiredFields.isEmpty()) {
-            schema.setRequired(requiredFields.stream().toList());
-        }
+            Set<String> exceptionFields,
+            Map<String, Set<String>> requestNotNullGroupNames,
+            Set<String> validationGroupNames) {
 
         // 没有对应的group，使用原文档schema
         if (fields.isEmpty() && requiredFields.isEmpty() && exceptionFields.isEmpty()) {
@@ -403,17 +426,44 @@ public class SpringDocOpenAPI {
 
         Iterator<String> iterator = schema.getProperties().keySet().iterator();
 
+        // 移除字段
         while (iterator.hasNext()) {
             String key = iterator.next();
 
+            // @notNull。如果设置了@notNull或@notNull(group=当前方法的group)，设置成必填项
+            Set<String> notNullGroupNames = requestNotNullGroupNames.get(key);
+
+            if (notNullGroupNames != null) {
+                boolean isNotNull = false;
+                for (String notNullGroupName : notNullGroupNames) {
+                    isNotNull =
+                            "ALL".equals(notNullGroupName)
+                                    || (null != validationGroupNames
+                                            && validationGroupNames.contains(notNullGroupName));
+
+                    if (isNotNull) {
+                        break;
+                    }
+                }
+
+                if (isNotNull) {
+                    requiredFields.add(key);
+                }
+            }
+
             // 是否删除字段 = 非必填 && 不显示
             boolean isRemove =
-                    (exceptionFields.contains(key) || !fields.contains(key))
-                            && !requiredFields.contains(key);
+                    (exceptionFields.contains(key) || (fields.size() > 0 && fields.contains(key)));
 
             if (isRemove) {
                 iterator.remove();
+                requiredFields.remove(key);
             }
+        }
+
+        // 设置必填字段
+        if (!requiredFields.isEmpty()) {
+            schema.setRequired(requiredFields.stream().toList());
         }
     }
 

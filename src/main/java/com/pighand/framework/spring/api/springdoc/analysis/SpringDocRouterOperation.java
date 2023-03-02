@@ -7,8 +7,10 @@ import com.pighand.framework.spring.api.springdoc.analysis.info.FieldInfo;
 import com.pighand.framework.spring.api.springdoc.analysis.info.MethodInfo;
 import com.pighand.framework.spring.api.springdoc.analysis.info.SpringDocInfo;
 import com.pighand.framework.spring.api.springdoc.utils.DocFieldGroupUrl;
+import jakarta.validation.constraints.NotNull;
 import org.springdoc.core.fn.RouterOperation;
 import org.springframework.util.StringUtils;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.method.HandlerMethod;
 
@@ -84,6 +86,20 @@ public class SpringDocRouterOperation {
         methodInfo.setReturnType(returnType);
         methodInfo.setParameters(new ArrayList<>(Arrays.asList(parameters)));
         methodInfo.setMethodFieldGroupNames(methodFieldGroupNames);
+
+        // 处理Validated
+        Set<String> validationGroupNames = new HashSet<>();
+        for (Annotation[] annotations : method.getParameterAnnotations()) {
+            for (Annotation annotation : annotations) {
+                if (annotation instanceof Validated) {
+                    Class[] validatedValues = ((Validated) annotation).value();
+                    for (Class validatedValue : validatedValues) {
+                        validationGroupNames.add(validatedValue.getName());
+                    }
+                }
+            }
+        }
+        methodInfo.setValidationGroupNames(validationGroupNames);
 
         return methodInfo;
     }
@@ -185,7 +201,17 @@ public class SpringDocRouterOperation {
      */
     private void analysisFiledGroupNames(
             String className, String fieldName, Annotation annotation) {
-        if (annotation instanceof Field) {
+        if (annotation instanceof NotNull) {
+            Class[] notNullGroups = ((NotNull) annotation).groups();
+
+            if (notNullGroups.length == 0) {
+                this.setFieldNotNull(className, fieldName, "ALL");
+            }
+
+            for (Class notNullGroup : notNullGroups) {
+                this.setFieldNotNull(className, fieldName, notNullGroup.getName());
+            }
+        } else if (annotation instanceof Field) {
             // @Field
             String[] groupNames = ((Field) annotation).value();
             boolean required = ((Field) annotation).required();
@@ -263,6 +289,39 @@ public class SpringDocRouterOperation {
     }
 
     /**
+     * field group {fileGroupName, FieldInfo}
+     *
+     * @param className
+     * @return
+     */
+    private Map<String, FieldInfo> getGroupMap(String className) {
+        return Optional.ofNullable(SpringDocInfo.docInfo.getClass2FieldMapping().get(className))
+                .orElse(new HashMap<>(0));
+    }
+
+    /**
+     * 设置字段notNull分组信息
+     *
+     * @param className
+     * @param fieldName
+     * @param notNullGroupName
+     */
+    private void setFieldNotNull(String className, String fieldName, String notNullGroupName) {
+        // field group
+        Map<String, FieldInfo> groupMap = this.getGroupMap(className);
+
+        groupMap.forEach(
+                (fileGroupName, fieldInfo) -> {
+                    Set<String> notNullGroupNames =
+                            Optional.ofNullable(
+                                            fieldInfo.getRequestNotNullGroupNames().get(fieldName))
+                                    .orElse(new HashSet<>());
+                    notNullGroupNames.add(notNullGroupName);
+                    fieldInfo.getRequestNotNullGroupNames().put(fieldName, notNullGroupNames);
+                });
+    }
+
+    /**
      * 组装分组信息
      *
      * <p>{className: {fileGroupName, FieldInfo}}
@@ -280,10 +339,8 @@ public class SpringDocRouterOperation {
             String[] groupNames,
             boolean isRequired) {
 
-        // {fileGroupName, FieldInfo}
-        Map<String, FieldInfo> groupMap =
-                Optional.ofNullable(SpringDocInfo.docInfo.getClass2FieldMapping().get(className))
-                        .orElse(new HashMap<>(0));
+        // field group
+        Map<String, FieldInfo> groupMap = this.getGroupMap(className);
 
         if (groupNames == null || groupNames.length == 0) {
             // 未设置group name，添加至所有group
