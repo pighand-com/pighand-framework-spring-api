@@ -92,10 +92,15 @@ boot、pighand-framework相关包。
 1. 在Application中启用：
 
 ```
- @Bean
- public PropertyCustomizer propertyCustomizer() {
-     return (schema, annotatedType) -> SpringDocProperty.analysis(schema, annotatedType);
- }
+@Bean
+public PropertyCustomizer propertyCustomizer() {
+    return (schema, annotatedType) -> SpringDocProperty.analysis(schema, annotatedType);
+}
+
+@Bean
+public ParameterCustomizer propertyCustomizers() {
+    return (parameterModel, methodParameter) -> SpringDocParameter.analysis(parameterModel, methodParameter);
+}
 ```
 
 2. bean中字段上使用分组注解：
@@ -142,4 +147,32 @@ boot、pighand-framework相关包。
     private String account;
 
 }
+```
+
+### springdoc 其他文档显示处理
+
+#### 显示空对象
+
+```agsl
+@Schema(implementation = EmptyObject.class)
+private JsonObject params;
+```
+
+文档中显示为
+> params = {}
+
+#### 自动添加分页查询参数
+
+修改yml配置文件
+
+```agsl
+pighand:
+  api:
+    enable-add-page-params: true    # 是否启用自动添加分页参数
+    page-params-required: true      # 是否必填
+    
+    # 匹配方法名的正则。
+    page-or-next-regex: ".*(?i)query$"  # 匹配成功添加：pageSize、pageCurrent、pageToken
+    page-regex: ".*(?i)page$"           # 匹配成功添加：pageSize、pageCurrent
+    page-next-regex: ".*(?i)pageNext$"  # 匹配成功添加：pageToken
 ```

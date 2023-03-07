@@ -2,12 +2,11 @@ package com.pighand.framework.spring.api.springdoc.analysis;
 
 import com.pighand.framework.spring.api.annotation.*;
 import com.pighand.framework.spring.api.annotation.field.*;
-import com.pighand.framework.spring.api.springdoc.analysis.info.FieldGroupType;
-import com.pighand.framework.spring.api.springdoc.analysis.info.FieldInfo;
-import com.pighand.framework.spring.api.springdoc.analysis.info.MethodInfo;
-import com.pighand.framework.spring.api.springdoc.analysis.info.SpringDocInfo;
+import com.pighand.framework.spring.api.springdoc.analysis.info.*;
 import com.pighand.framework.spring.api.springdoc.utils.DocFieldGroupUrl;
+
 import jakarta.validation.constraints.NotNull;
+
 import org.springdoc.core.fn.RouterOperation;
 import org.springframework.util.StringUtils;
 import org.springframework.validation.annotation.Validated;
@@ -205,7 +204,7 @@ public class SpringDocRouterOperation {
             Class[] notNullGroups = ((NotNull) annotation).groups();
 
             if (notNullGroups.length == 0) {
-                this.setFieldNotNull(className, fieldName, "ALL");
+                this.setFieldNotNull(className, fieldName, DocInfo.NOT_NULL_GROUP_ALL);
             }
 
             for (Class notNullGroup : notNullGroups) {
@@ -307,18 +306,16 @@ public class SpringDocRouterOperation {
      * @param notNullGroupName
      */
     private void setFieldNotNull(String className, String fieldName, String notNullGroupName) {
-        // field group
-        Map<String, FieldInfo> groupMap = this.getGroupMap(className);
+        Map<String, Set<String>> groupMap =
+                Optional.ofNullable(SpringDocInfo.docInfo.getClass2NotNullMapping().get(className))
+                        .orElse(new HashMap<>(0));
 
-        groupMap.forEach(
-                (fileGroupName, fieldInfo) -> {
-                    Set<String> notNullGroupNames =
-                            Optional.ofNullable(
-                                            fieldInfo.getRequestNotNullGroupNames().get(fieldName))
-                                    .orElse(new HashSet<>());
-                    notNullGroupNames.add(notNullGroupName);
-                    fieldInfo.getRequestNotNullGroupNames().put(fieldName, notNullGroupNames);
-                });
+        Set<String> fieldNames =
+                Optional.ofNullable(groupMap.get(notNullGroupName)).orElse(new HashSet<>());
+        fieldNames.add(fieldName);
+        groupMap.put(notNullGroupName, fieldNames);
+
+        SpringDocInfo.docInfo.getClass2NotNullMapping().put(className, groupMap);
     }
 
     /**

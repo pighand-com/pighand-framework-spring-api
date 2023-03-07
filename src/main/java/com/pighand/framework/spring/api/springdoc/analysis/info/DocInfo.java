@@ -5,6 +5,7 @@ import lombok.Data;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * @author wangshuli
@@ -12,11 +13,19 @@ import java.util.Optional;
 @Data
 public class DocInfo {
 
+    /**
+     * @NotNull不设置group，添加到所有接口文档中
+     */
+    public static final String NOT_NULL_GROUP_ALL = "ALL";
+
     /** {url: MethodInfo} */
     private Map<String, MethodInfo> url2MethodMapping = new HashMap<>();
 
     /** {className: {fileGroupName, FieldInfo}} */
     private Map<String, Map<String, FieldInfo>> class2FieldMapping = new HashMap<>();
+
+    /** {className: {notNullGroupName, Set<fileName>}} */
+    private Map<String, Map<String, Set<String>>> class2NotNullMapping = new HashMap<>();
 
     public void setUrl2MethodMapping(String url, MethodInfo methodInfo) {
         this.url2MethodMapping.put(url, methodInfo);

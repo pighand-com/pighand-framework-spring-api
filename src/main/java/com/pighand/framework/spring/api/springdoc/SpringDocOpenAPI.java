@@ -5,7 +5,9 @@ import com.pighand.framework.spring.api.springdoc.analysis.info.DocInfo;
 import com.pighand.framework.spring.api.springdoc.analysis.info.FieldInfo;
 import com.pighand.framework.spring.api.springdoc.analysis.info.MethodInfo;
 import com.pighand.framework.spring.api.springdoc.analysis.info.SpringDocInfo;
+import com.pighand.framework.spring.api.springdoc.pageParams.AddPageParams;
 import com.pighand.framework.spring.api.springdoc.utils.DocFieldGroupUrl;
+
 import io.swagger.v3.core.converter.AnnotatedType;
 import io.swagger.v3.core.converter.ModelConverters;
 import io.swagger.v3.core.converter.ResolvedSchema;
@@ -16,6 +18,7 @@ import io.swagger.v3.oas.models.media.Schema;
 import io.swagger.v3.oas.models.parameters.Parameter;
 import io.swagger.v3.oas.models.parameters.RequestBody;
 import io.swagger.v3.oas.models.responses.ApiResponses;
+
 import org.springframework.util.StringUtils;
 
 import java.lang.reflect.Type;
@@ -36,6 +39,10 @@ public class SpringDocOpenAPI {
     public SpringDocOpenAPI(OpenAPI openApi) {
         this.openApi = openApi;
 
+        // 添加分页查询参数
+        new AddPageParams(openApi);
+
+        // 根据group处理文档
         if (refMapping.size() == 0) {
             return;
         }
@@ -186,7 +193,9 @@ public class SpringDocOpenAPI {
                             newParameter.in("query");
                             newParameter.name(key);
                             newParameter.description(temSchema.getDescription());
-                            newParameter.required(schema.getRequired().contains(key));
+                            newParameter.required(
+                                    schema.getRequired() != null
+                                            && schema.getRequired().contains(key));
                             newParameter.example(temSchema.getExample());
                             newParameter.schema(temSchema);
 
@@ -307,45 +316,25 @@ public class SpringDocOpenAPI {
             Schema schema = newSchemas.get(schemaName);
             String schemaClassName = refMapping.get(schemaName);
 
-            // schema对应的group字段信息
-            List<FieldInfo> groupFieldInfos =
-                    this.getGroupFieldInfos(schemaClassName, methodGroupNames);
+            // 当前bean适配@NotNull的字段
+            Set<String> notNullFields =
+                    this.setSchemaNotNullRequired(schema, schemaClassName, validationGroupNames);
 
-            if (groupFieldInfos.size() == 0) {
+            // 格式化schema字段信息
+            Set<String> formatGroupNames =
+                    this.formatSchemaField(
+                            schema, schemaClassName, type, methodGroupNames, notNullFields);
+
+            // 跳过：无任何格式化
+            if (notNullFields == null && formatGroupNames.size() == 0) {
                 continue;
             }
 
-            Set<String> formatGroupNames = new HashSet<>();
-            groupFieldInfos.forEach(
-                    fieldInfo -> {
-                        Set<String> fields =
-                                type.equals("request")
-                                        ? fieldInfo.getRequestFields()
-                                        : fieldInfo.getResponseFields();
-                        Set<String> requiredFields =
-                                type.equals("request")
-                                        ? fieldInfo.getRequestRequiredFields()
-                                        : fieldInfo.getResponseRequiredFields();
-                        Set<String> exceptionFields =
-                                type.equals("request")
-                                        ? fieldInfo.getRequestExceptionFields()
-                                        : fieldInfo.getResponseExceptionFields();
-                        Map<String, Set<String>> requestNotNullGroupNames =
-                                fieldInfo.getRequestNotNullGroupNames();
+            if (formatGroupNames.size() == 0) {
+                formatGroupNames.add("@NotNull");
+            }
 
-                        // 根据group，设置schema
-                        this.setSchemaFiled(
-                                schema,
-                                fields,
-                                requiredFields,
-                                exceptionFields,
-                                requestNotNullGroupNames,
-                                validationGroupNames);
-
-                        formatGroupNames.add(fieldInfo.getFileGroupName());
-                    });
-
-            // 将新schema添加到文档中
+            // 将新schema添加到文档中，并重命名
             schema.setName(
                     type + " ->" + schema.getName() + " -> " + String.join(" ,", formatGroupNames));
             openApi.schema(schema.getName(), schema);
@@ -402,22 +391,114 @@ public class SpringDocOpenAPI {
     }
 
     /**
+     * 设置schema对类中，带有@NotNull注解的字段（包含没有group和group与当前方法一致）
+     *
+     * @param schema
+     * @param schemaClassName
+     * @param validationGroupNames
+     * @return null：类中不带任何@NotNull注解
+     */
+    private Set<String> setSchemaNotNullRequired(
+            Schema schema, String schemaClassName, Set<String> validationGroupNames) {
+        Map<String, Set<String>> notNullGroups =
+                this.docInfo.getClass2NotNullMapping().get(schemaClassName);
+
+        if (notNullGroups != null && notNullGroups.size() > 0) {
+            Set<String> requiredFieldNames = new HashSet<>();
+
+            // 不带group的@NotNull
+            Set<String> allFields = notNullGroups.get(DocInfo.NOT_NULL_GROUP_ALL);
+            if (allFields != null) {
+                requiredFieldNames.addAll(allFields);
+            }
+
+            // 当前方法group对应@NotNull的group
+            if (validationGroupNames != null) {
+                validationGroupNames.stream()
+                        .forEach(
+                                validationGroupName -> {
+                                    Set<String> groupRequiredFieldNames =
+                                            notNullGroups.get(validationGroupName);
+                                    if (groupRequiredFieldNames != null) {
+                                        requiredFieldNames.addAll(groupRequiredFieldNames);
+                                    }
+                                });
+            }
+
+            // @NotNull与schema中自带required一致，则不处理
+            List<String> schemaRequired = schema.getRequired();
+            if (schemaRequired != null && schemaRequired.equals(requiredFieldNames)) {
+                return null;
+            }
+
+            schema.setRequired(requiredFieldNames.stream().toList());
+            return requiredFieldNames;
+        }
+
+        return null;
+    }
+
+    /**
+     * 格式化schema字段
+     *
+     * @param schema
+     * @param schemaClassName
+     * @param type
+     * @param methodGroupNames
+     * @param notNullFields
+     * @return 格式化的field group name。null：未格式化任何信息
+     */
+    private Set<String> formatSchemaField(
+            Schema schema,
+            String schemaClassName,
+            String type,
+            Set<String> methodGroupNames,
+            Set<String> notNullFields) {
+        Set<String> formatGroupNames = new HashSet<>();
+
+        // schema对应的group字段信息
+        List<FieldInfo> groupFieldInfos =
+                this.getGroupFieldInfos(schemaClassName, methodGroupNames);
+
+        groupFieldInfos.forEach(
+                fieldInfo -> {
+                    Set<String> fields =
+                            type.equals("request")
+                                    ? fieldInfo.getRequestFields()
+                                    : fieldInfo.getResponseFields();
+                    Set<String> requiredFields =
+                            type.equals("request")
+                                    ? fieldInfo.getRequestRequiredFields()
+                                    : fieldInfo.getResponseRequiredFields();
+                    Set<String> exceptionFields =
+                            type.equals("request")
+                                    ? fieldInfo.getRequestExceptionFields()
+                                    : fieldInfo.getResponseExceptionFields();
+
+                    // 根据group，设置schema
+                    this.setSchemaFiled(
+                            schema, fields, requiredFields, exceptionFields, notNullFields);
+
+                    formatGroupNames.add(fieldInfo.getFileGroupName());
+                });
+        return formatGroupNames;
+    }
+
+    /**
      * 根据group对应的字段，设置schema字段信息
      *
      * @param schema
      * @param fields 需要显示的字段
      * @param requiredFields 必填的字段
      * @param exceptionFields 不显示的字段
-     * @param requestNotNullGroupNames notNull字段group name
-     * @param validationGroupNames class function validation group name
+     * @param notNullFields 不显示的字段
      */
     private void setSchemaFiled(
             Schema schema,
             Set<String> fields,
             Set<String> requiredFields,
             Set<String> exceptionFields,
-            Map<String, Set<String>> requestNotNullGroupNames,
-            Set<String> validationGroupNames) {
+            Set<String> notNullFields) {
 
         // 没有对应的group，使用原文档schema
         if (fields.isEmpty() && requiredFields.isEmpty() && exceptionFields.isEmpty()) {
@@ -431,20 +512,8 @@ public class SpringDocOpenAPI {
             String key = iterator.next();
 
             // @notNull。如果设置了@notNull或@notNull(group=当前方法的group)，设置成必填项
-            Set<String> notNullGroupNames = requestNotNullGroupNames.get(key);
-
-            if (notNullGroupNames != null) {
-                boolean isNotNull = false;
-                for (String notNullGroupName : notNullGroupNames) {
-                    isNotNull =
-                            "ALL".equals(notNullGroupName)
-                                    || (null != validationGroupNames
-                                            && validationGroupNames.contains(notNullGroupName));
-
-                    if (isNotNull) {
-                        break;
-                    }
-                }
+            if (notNullFields != null && notNullFields.size() > 0) {
+                boolean isNotNull = notNullFields.contains(key);
 
                 if (isNotNull) {
                     requiredFields.add(key);
@@ -462,9 +531,7 @@ public class SpringDocOpenAPI {
         }
 
         // 设置必填字段
-        if (!requiredFields.isEmpty()) {
-            schema.setRequired(requiredFields.stream().toList());
-        }
+        schema.setRequired(requiredFields.stream().toList());
     }
 
     /**
