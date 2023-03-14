@@ -339,22 +339,36 @@ public class SpringDocRouterOperation {
         // field group
         Map<String, FieldInfo> groupMap = this.getGroupMap(className);
 
-        if (groupNames == null || groupNames.length == 0) {
-            // 未设置group name，添加至所有group
-            groupMap.forEach(
-                    (fileGroupName, fieldInfo) ->
-                            this.addToFieldInfo(type, fieldInfo, fieldName, isRequired));
-        } else {
-            // 根据group name添加
-            for (String groupName : groupNames) {
-                FieldInfo fieldInfo =
-                        Optional.ofNullable(groupMap.get(groupName)).orElse(new FieldInfo());
-                fieldInfo.setFileGroupName(groupName);
+        // no group field
+        FieldInfo allFieldInfo =
+                Optional.ofNullable(groupMap.get(DocInfo.NOT_NULL_GROUP_ALL))
+                        .orElse(new FieldInfo());
+        allFieldInfo.setFileGroupName(DocInfo.NOT_NULL_GROUP_ALL);
 
-                this.addToFieldInfo(type, fieldInfo, fieldName, isRequired);
+        // 添加至所有group
+        if (groupNames.length == 0) {
+            // 未设置group name
+            this.addToFieldInfo(type, allFieldInfo, fieldName, isRequired);
+        } else if (type.equals(FieldGroupType.RESPONSE_EXCEPTION)) {
+            // request排除的，其他group添加
+            this.addToFieldInfo(FieldGroupType.RESPONSE, allFieldInfo, fieldName, isRequired);
+        } else if (type.equals(FieldGroupType.REQUEST_EXCEPTION)) {
+            // response排除的，其他group添加
+            this.addToFieldInfo(FieldGroupType.REQUEST, allFieldInfo, fieldName, isRequired);
+        }
 
-                SpringDocInfo.docInfo.setClass2FieldMapping(className, groupName, fieldInfo);
-            }
+        SpringDocInfo.docInfo.setClass2FieldMapping(
+                className, DocInfo.NOT_NULL_GROUP_ALL, allFieldInfo);
+
+        // 根据group name添加
+        for (String groupName : groupNames) {
+            FieldInfo fieldInfo =
+                    Optional.ofNullable(groupMap.get(groupName)).orElse(new FieldInfo());
+            fieldInfo.setFileGroupName(groupName);
+
+            this.addToFieldInfo(type, fieldInfo, fieldName, isRequired);
+
+            SpringDocInfo.docInfo.setClass2FieldMapping(className, groupName, fieldInfo);
         }
     }
 

@@ -456,6 +456,12 @@ public class SpringDocOpenAPI {
             Set<String> notNullFields) {
         Set<String> formatGroupNames = new HashSet<>();
 
+        // 无group的字段
+        FieldInfo noGroupFieldInfo =
+                Optional.ofNullable(this.docInfo.getClass2FieldMapping().get(schemaClassName))
+                        .orElse(new HashMap<>(0))
+                        .get(DocInfo.NOT_NULL_GROUP_ALL);
+
         // schema对应的group字段信息
         List<FieldInfo> groupFieldInfos =
                 this.getGroupFieldInfos(schemaClassName, methodGroupNames);
@@ -475,9 +481,29 @@ public class SpringDocOpenAPI {
                                     ? fieldInfo.getRequestExceptionFields()
                                     : fieldInfo.getResponseExceptionFields();
 
+                    Set<String> noGroupFields =
+                            type.equals("request")
+                                    ? noGroupFieldInfo.getRequestFields()
+                                    : noGroupFieldInfo.getResponseFields();
+                    Set<String> noGroupRequiredFields =
+                            type.equals("request")
+                                    ? noGroupFieldInfo.getRequestRequiredFields()
+                                    : noGroupFieldInfo.getResponseRequiredFields();
+                    Set<String> noGroupExceptionFields =
+                            type.equals("request")
+                                    ? noGroupFieldInfo.getRequestExceptionFields()
+                                    : noGroupFieldInfo.getResponseExceptionFields();
+
                     // 根据group，设置schema
                     this.setSchemaFiled(
-                            schema, fields, requiredFields, exceptionFields, notNullFields);
+                            schema,
+                            fields,
+                            requiredFields,
+                            exceptionFields,
+                            noGroupFields,
+                            noGroupRequiredFields,
+                            noGroupExceptionFields,
+                            notNullFields);
 
                     formatGroupNames.add(fieldInfo.getFileGroupName());
                 });
@@ -488,20 +514,32 @@ public class SpringDocOpenAPI {
      * 根据group对应的字段，设置schema字段信息
      *
      * @param schema
-     * @param fields 需要显示的字段
-     * @param requiredFields 必填的字段
-     * @param exceptionFields 不显示的字段
-     * @param notNullFields 不显示的字段
+     * @param fields 只显示的字段：设置了@Field(group="XXX")
+     * @param requiredFields 必填的字段：设置了@Field(group="XXX", required=true)
+     * @param exceptionFields 不显示的字段: 设置了@FieldException(group="XXX")
+     * @param noGroupFields 全局都可以显示的字段：设置了@Field
+     * @param noGroupRequiredFields 全局必填的字段：设置了@Field(required=true)
+     * @param noGroupExceptionFields 全局不显示的字段: 设置了@FieldException
+     * @param notNullFields notNull的必填字段
      */
     private void setSchemaFiled(
             Schema schema,
             Set<String> fields,
             Set<String> requiredFields,
             Set<String> exceptionFields,
+            Set<String> noGroupFields,
+            Set<String> noGroupRequiredFields,
+            Set<String> noGroupExceptionFields,
             Set<String> notNullFields) {
 
         // 没有对应的group，使用原文档schema
-        if (fields.isEmpty() && requiredFields.isEmpty() && exceptionFields.isEmpty()) {
+        if (fields.isEmpty()
+                && requiredFields.isEmpty()
+                && exceptionFields.isEmpty()
+                && noGroupFields.isEmpty()
+                && noGroupRequiredFields.isEmpty()
+                && noGroupExceptionFields.isEmpty()
+                && notNullFields.isEmpty()) {
             return;
         }
 
@@ -520,9 +558,13 @@ public class SpringDocOpenAPI {
                 }
             }
 
-            // 是否删除字段 = 非必填 && 不显示
+            // 是否删除字段 = 标明不显示的字段 or 标明全局不显示的字段 or 有只显示的字段，且不在只显示的字段中，也不在全局可现实的字段中
             boolean isRemove =
-                    (exceptionFields.contains(key) || (fields.size() > 0 && fields.contains(key)));
+                    exceptionFields.contains(key)
+                            || noGroupExceptionFields.contains(key)
+                            || (fields.size() > 0
+                                    && !fields.contains(key)
+                                    && !noGroupFields.contains(key));
 
             if (isRemove) {
                 iterator.remove();
