@@ -155,7 +155,7 @@ public ParameterCustomizer propertyCustomizers() {
 
 ```agsl
 @Schema(implementation = EmptyObject.class)
-private JsonObject params;
+private JsonNode params;
 ```
 
 文档中显示为
