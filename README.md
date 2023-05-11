@@ -151,9 +151,6 @@ public ParameterCustomizer propertyCustomizers() {
 
 ### springdoc 其他文档显示处理
 
-在Application添加注解：
-> @Import({HttpExchangeRegister.class})
-
 #### 显示空对象
 
 ```agsl
