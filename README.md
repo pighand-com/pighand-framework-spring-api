@@ -151,6 +151,9 @@ public ParameterCustomizer propertyCustomizers() {
 
 ### springdoc 其他文档显示处理
 
+在Application添加注解：
+> @Import({HttpExchangeRegister.class})
+
 #### 显示空对象
 
 ```agsl
@@ -176,3 +179,22 @@ pighand:
     page-regex: ".*(?i)page$"           # 匹配成功添加：pageSize、pageCurrent
     page-next-regex: ".*(?i)pageNext$"  # 匹配成功添加：pageToken
 ```
+
+### springdoc 字段脱敏
+
+在Application添加注解：
+> @Import({JacksonSerializer.class})
+
+在字段上添加注解：
+> @Conceal()
+
+如不设置任何值，替换全部字符
+
+| 参数       | 默认值          | 描述                    | 例                      |
+|----------|--------------|-----------------------|------------------------|
+| start    | 0            | 替换开始字符                | (start=1) abc -> a**   |
+| end      | value.length | 替换结束字符                | (end=1) abc -> **c     |
+| prefix   | null         | 前缀替换                  | (prefix=2) abc -> **c  |
+| suffix   | null         | 后缀替换                  | (suffix=2) abc -> a**  |
+| markSize | null         | 忽律字符数量，固定使用markSize的值 | (markSize=1) abc -> *  |
+| value    | "*"          | 脱敏替换字符                | (value="$") abc => a$c |
