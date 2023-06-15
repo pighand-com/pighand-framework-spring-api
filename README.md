@@ -149,6 +149,22 @@ public ParameterCustomizer propertyCustomizers() {
 }
 ```
 
+### 反序列化String to Long
+
+> @JsonSerialize(using = ToStringSerializer.class)
+
+雪花id等超过16位的id，前端number类型无法完整显示。序列化时可转为String，反序列化时可转为Long。
+
+```
+import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
+import com.pighand.framework.spring.api.annotation.serialization.ToLongSerializer;
+
+@TableId
+@JsonDeserialize(using = ToLongSerializer.class)
+@JsonSerialize(using = ToStringSerializer.class)
+private Long id;
+```
+
 ### springdoc 其他文档显示处理
 
 #### 显示空对象
