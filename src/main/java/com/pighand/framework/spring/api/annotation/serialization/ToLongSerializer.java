@@ -18,6 +18,6 @@ public class ToLongSerializer extends JsonDeserializer<Long> {
         if (jsonParser == null) {
             return null;
         }
-        return Long.getLong(jsonParser.getText());
+        return Long.valueOf(jsonParser.getText());
     }
 }
