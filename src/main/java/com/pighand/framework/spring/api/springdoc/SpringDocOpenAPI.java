@@ -7,7 +7,6 @@ import com.pighand.framework.spring.api.springdoc.analysis.info.MethodInfo;
 import com.pighand.framework.spring.api.springdoc.analysis.info.SpringDocInfo;
 import com.pighand.framework.spring.api.springdoc.pageParams.AddPageParams;
 import com.pighand.framework.spring.api.springdoc.utils.DocFieldGroupUrl;
-
 import io.swagger.v3.core.converter.AnnotatedType;
 import io.swagger.v3.core.converter.ModelConverters;
 import io.swagger.v3.core.converter.ResolvedSchema;
@@ -18,7 +17,6 @@ import io.swagger.v3.oas.models.media.Schema;
 import io.swagger.v3.oas.models.parameters.Parameter;
 import io.swagger.v3.oas.models.parameters.RequestBody;
 import io.swagger.v3.oas.models.responses.ApiResponses;
-
 import org.springframework.util.StringUtils;
 
 import java.lang.reflect.Type;
@@ -31,10 +29,10 @@ import java.util.*;
  */
 public class SpringDocOpenAPI {
 
-    private DocInfo docInfo = SpringDocInfo.docInfo;
-    private Map<String, String> refMapping = SpringDocInfo.refMapping;
+    private final DocInfo docInfo = SpringDocInfo.docInfo;
+    private final Map<String, String> refMapping = SpringDocInfo.refMapping;
 
-    private OpenAPI openApi;
+    private final OpenAPI openApi;
 
     public SpringDocOpenAPI(OpenAPI openApi) {
         this.openApi = openApi;
@@ -47,15 +45,13 @@ public class SpringDocOpenAPI {
             return;
         }
 
-        openApi.getPaths()
-                .forEach(
-                        (url, pathItem) -> {
-                            analysisController("POST", url, pathItem.getPost());
-                            analysisController("PUT", url, pathItem.getPut());
-                            analysisController("DELETE", url, pathItem.getDelete());
-                            analysisController("GET", url, pathItem.getGet());
-                            analysisController("PATCH", url, pathItem.getPatch());
-                        });
+        openApi.getPaths().forEach((url, pathItem) -> {
+            analysisController("POST", url, pathItem.getPost());
+            analysisController("PUT", url, pathItem.getPut());
+            analysisController("DELETE", url, pathItem.getDelete());
+            analysisController("GET", url, pathItem.getGet());
+            analysisController("PATCH", url, pathItem.getPatch());
+        });
     }
 
     /**
@@ -76,7 +72,6 @@ public class SpringDocOpenAPI {
         MethodInfo methodInfo = docInfo.getUrl2MethodMapping().get(apiUrl);
 
         if (null == methodInfo) {
-            return;
         }
 
         // 重写request body
@@ -96,31 +91,29 @@ public class SpringDocOpenAPI {
      * @param methodInfo
      */
     private void rewriteRequestBody(Operation operation, MethodInfo methodInfo) {
+        if (operation == null || methodInfo == null) {
+            return;
+        }
+
         Content requestBody =
-                Optional.ofNullable(operation.getRequestBody())
-                        .map(RequestBody::getContent)
-                        .orElse(new Content());
+            Optional.ofNullable(operation.getRequestBody()).map(RequestBody::getContent).orElse(new Content());
 
-        requestBody.forEach(
-                (contentType, item) -> {
-                    Schema oldSchema = item.getSchema();
+        requestBody.forEach((contentType, item) -> {
+            Schema oldSchema = item.getSchema();
 
-                    if (null == oldSchema) {
-                        return;
-                    }
+            if (null == oldSchema) {
+                return;
+            }
 
-                    String refName = oldSchema.get$ref();
-                    Schema schema =
-                            requestSchema(
-                                    methodInfo.getMethodFieldGroupNames(),
-                                    methodInfo.getValidationGroupNames(),
-                                    refName);
+            String refName = oldSchema.get$ref();
+            Schema schema =
+                requestSchema(methodInfo.getMethodFieldGroupNames(), methodInfo.getValidationGroupNames(), refName);
 
-                    if (schema != null) {
-                        oldSchema.set$ref(schema.getName());
-                        item.schema(oldSchema);
-                    }
-                });
+            if (schema != null) {
+                oldSchema.set$ref(schema.getName());
+                item.schema(oldSchema);
+            }
+        });
     }
 
     /**
@@ -130,8 +123,11 @@ public class SpringDocOpenAPI {
      * @param methodInfo
      */
     private void rewriteRequestParams(Operation operation, MethodInfo methodInfo) {
-        List<Parameter> parameters =
-                Optional.ofNullable(operation.getParameters()).orElse(new ArrayList(0));
+        if (operation == null || methodInfo == null) {
+            return;
+        }
+
+        List<Parameter> parameters = Optional.ofNullable(operation.getParameters()).orElse(new ArrayList(0));
 
         // request params
         List<Parameter> requestParameters = new ArrayList<>(parameters.size());
@@ -139,31 +135,27 @@ public class SpringDocOpenAPI {
         // request schema to params
         List<Parameter> schemaParameters = new ArrayList<>(parameters.size());
 
-        parameters.forEach(
-                parameter -> {
-                    Schema oldSchema = parameter.getSchema();
+        parameters.forEach(parameter -> {
+            Schema oldSchema = parameter.getSchema();
 
-                    if (null == oldSchema) {
-                        requestParameters.add(parameter);
-                        return;
-                    }
+            if (null == oldSchema) {
+                requestParameters.add(parameter);
+                return;
+            }
 
-                    String refName = oldSchema.get$ref();
-                    Schema schema =
-                            requestSchema(
-                                    methodInfo.getMethodFieldGroupNames(),
-                                    methodInfo.getValidationGroupNames(),
-                                    refName);
+            String refName = oldSchema.get$ref();
+            Schema schema =
+                requestSchema(methodInfo.getMethodFieldGroupNames(), methodInfo.getValidationGroupNames(), refName);
 
-                    if (schema != null) {
-                        // 更新新的schema
-                        oldSchema.set$ref(schema.getName());
-                        parameter.setSchema(oldSchema);
+            if (schema != null) {
+                // 更新新的schema
+                oldSchema.set$ref(schema.getName());
+                parameter.setSchema(oldSchema);
 
-                        // 根据schema生成params
-                        schemaParameters.addAll(schema2Parameters(schema));
-                    }
-                });
+                // 根据schema生成params
+                schemaParameters.addAll(schema2Parameters(schema));
+            }
+        });
 
         // 如果存在schema。将schema转为params
         if (schemaParameters.size() > 0) {
@@ -183,24 +175,19 @@ public class SpringDocOpenAPI {
 
         List<Parameter> parameter = new ArrayList<>(properties.size());
 
-        properties
-                .keySet()
-                .forEach(
-                        key -> {
-                            Schema temSchema = properties.get(key);
+        properties.keySet().forEach(key -> {
+            Schema temSchema = properties.get(key);
 
-                            Parameter newParameter = new Parameter();
-                            newParameter.in("query");
-                            newParameter.name(key);
-                            newParameter.description(temSchema.getDescription());
-                            newParameter.required(
-                                    schema.getRequired() != null
-                                            && schema.getRequired().contains(key));
-                            newParameter.example(temSchema.getExample());
-                            newParameter.schema(temSchema);
+            Parameter newParameter = new Parameter();
+            newParameter.in("query");
+            newParameter.name(key);
+            newParameter.description(temSchema.getDescription());
+            newParameter.required(schema.getRequired() != null && schema.getRequired().contains(key));
+            newParameter.example(temSchema.getExample());
+            newParameter.schema(temSchema);
 
-                            parameter.add(newParameter);
-                        });
+            parameter.add(newParameter);
+        });
 
         return parameter;
     }
@@ -212,28 +199,24 @@ public class SpringDocOpenAPI {
      * @param methodInfo
      */
     private void rewriteResponses(Operation operation, MethodInfo methodInfo) {
-        ApiResponses apiResponses =
-                Optional.ofNullable(operation.getResponses()).orElse(new ApiResponses());
+        if (operation == null || methodInfo == null) {
+            return;
+        }
+        ApiResponses apiResponses = Optional.ofNullable(operation.getResponses()).orElse(new ApiResponses());
 
-        apiResponses.forEach(
-                (key, value) -> {
-                    Content responseContent =
-                            Optional.ofNullable(value.getContent()).orElse(new Content());
+        apiResponses.forEach((key, value) -> {
+            Content responseContent = Optional.ofNullable(value.getContent()).orElse(new Content());
 
-                    responseContent.forEach(
-                            (contentType, item) -> {
-                                Schema schema =
-                                        responseSchema(
-                                                methodInfo.getMethodFieldGroupNames(),
-                                                methodInfo.getReturnType());
+            responseContent.forEach((contentType, item) -> {
+                Schema schema = responseSchema(methodInfo.getMethodFieldGroupNames(), methodInfo.getReturnType());
 
-                                if (schema != null) {
-                                    Schema oldSchema = item.getSchema();
-                                    oldSchema.set$ref(schema.getName());
-                                    item.setSchema(oldSchema);
-                                }
-                            });
-                });
+                if (schema != null) {
+                    Schema oldSchema = item.getSchema();
+                    oldSchema.set$ref(schema.getName());
+                    item.setSchema(oldSchema);
+                }
+            });
+        });
     }
 
     /**
@@ -243,8 +226,7 @@ public class SpringDocOpenAPI {
      * @return
      */
     private ResolvedSchema createSchema(Type type) {
-        return ModelConverters.getInstance()
-                .resolveAsResolvedSchema(new AnnotatedType(type).resolveAsRef(false));
+        return ModelConverters.getInstance().resolveAsResolvedSchema(new AnnotatedType(type).resolveAsRef(false));
     }
 
     /**
@@ -255,8 +237,7 @@ public class SpringDocOpenAPI {
      * @param refName
      * @return 返回设置后的schema；没有对应的group，返回null
      */
-    private Schema requestSchema(
-            Set<String> methodGroupNames, Set<String> validationGroupNames, String refName) {
+    private Schema requestSchema(Set<String> methodGroupNames, Set<String> validationGroupNames, String refName) {
         if (!StringUtils.hasText(refName)) {
             return null;
         }
@@ -267,8 +248,7 @@ public class SpringDocOpenAPI {
             Class clz = Class.forName(refClassName);
             ResolvedSchema resolvedSchema = createSchema(clz);
 
-            return this.formatSchema(
-                    "request", methodGroupNames, validationGroupNames, resolvedSchema);
+            return this.formatSchema("request", methodGroupNames, validationGroupNames, resolvedSchema);
         } catch (Exception e) {
             return null;
         }
@@ -290,17 +270,14 @@ public class SpringDocOpenAPI {
     /**
      * 根据group信息，格式化schema
      *
-     * @param type request、response
+     * @param type                 request、response
      * @param methodGroupNames
      * @param validationGroupNames
-     * @param resolvedSchema new schema
+     * @param resolvedSchema       new schema
      * @return 返回设置后的schema；没有对应的group，返回null
      */
-    private Schema formatSchema(
-            String type,
-            Set<String> methodGroupNames,
-            Set<String> validationGroupNames,
-            ResolvedSchema resolvedSchema) {
+    private Schema formatSchema(String type, Set<String> methodGroupNames, Set<String> validationGroupNames,
+        ResolvedSchema resolvedSchema) {
         // 解析的bean对应的schema
         Schema mainSchema = resolvedSchema.schema;
         String mainSchemaName = mainSchema.getName();
@@ -317,13 +294,11 @@ public class SpringDocOpenAPI {
             String schemaClassName = refMapping.get(schemaName);
 
             // 当前bean适配@NotNull的字段
-            Set<String> notNullFields =
-                    this.setSchemaNotNullRequired(schema, schemaClassName, validationGroupNames);
+            Set<String> notNullFields = this.setSchemaNotNullRequired(schema, schemaClassName, validationGroupNames);
 
             // 格式化schema字段信息
             Set<String> formatGroupNames =
-                    this.formatSchemaField(
-                            schema, schemaClassName, type, methodGroupNames, notNullFields);
+                this.formatSchemaField(schema, schemaClassName, type, methodGroupNames, notNullFields);
 
             // 跳过：无任何格式化
             if (notNullFields == null && formatGroupNames.size() == 0) {
@@ -335,8 +310,7 @@ public class SpringDocOpenAPI {
             }
 
             // 将新schema添加到文档中，并重命名
-            schema.setName(
-                    type + " ->" + schema.getName() + " -> " + String.join(" ,", formatGroupNames));
+            schema.setName(type + " -> " + schema.getName() + " -> " + String.join(" ,", formatGroupNames));
             openApi.schema(schema.getName(), schema);
 
             if (mainSchemaName.equals(schemaClassName)) {
@@ -344,8 +318,11 @@ public class SpringDocOpenAPI {
             }
         }
 
+        Set<String> mergedRefs = new HashSet();
+        mergedRefs.add(refMapping.get(mainSchemaName));
+
         // 将字段schema合并至主schema
-        return this.mergeMainSchema(mainSchema, newSchemas);
+        return this.mergeMainSchema(mainSchema, newSchemas, mergedRefs);
     }
 
     /**
@@ -355,36 +332,40 @@ public class SpringDocOpenAPI {
      *
      * @param mainSchema
      * @param newSchemas 格式化后的所有schema
+     * @param mergedRefs 已解析schema的ref。用于解析子对象时，包含父对象则跳过，防止循环引用
      * @return
      */
-    private Schema mergeMainSchema(Schema mainSchema, Map<String, Schema> newSchemas) {
+    private Schema mergeMainSchema(Schema mainSchema, Map<String, Schema> newSchemas, Set<String> mergedRefs) {
         if (mainSchema == null) {
-            return null;
+            return mainSchema;
         }
 
         Map<String, Schema> properties = mainSchema.getProperties();
-        properties.forEach(
-                (propertyName, propertySchema) -> {
-                    String propertySchemaRef = propertySchema.get$ref();
+        properties.forEach((propertyName, propertySchema) -> {
+            String propertySchemaRef = propertySchema.get$ref();
 
-                    // 解析list类型字段: List<bean>
-                    Schema propertyItems = propertySchema.getItems();
-                    if (!StringUtils.hasText(propertySchemaRef) && propertyItems != null) {
-                        propertySchemaRef = propertyItems.get$ref();
-                    }
+            // 解析list类型字段: List<bean>
+            Schema propertyItems = propertySchema.getItems();
+            if (!StringUtils.hasText(propertySchemaRef) && propertyItems != null) {
+                propertySchemaRef = propertyItems.get$ref();
+            }
 
-                    if (StringUtils.hasText(propertySchemaRef)) {
-                        String schemaBeanName = AnalysisSchema.refName2BeanName(propertySchemaRef);
-                        Schema propertyNewSchema = newSchemas.get(schemaBeanName);
+            if (!StringUtils.hasText(propertySchemaRef) || mergedRefs.contains(propertySchemaRef)
+                || mergedRefs.contains(refMapping.get(propertySchemaRef))) {
+                return;
+            }
 
-                        if (propertyNewSchema != null
-                                && !"json".equals(propertyNewSchema.getFormat())) {
-                            propertyNewSchema = this.mergeMainSchema(propertyNewSchema, newSchemas);
+            mergedRefs.add(propertySchemaRef);
 
-                            properties.put(propertyName, propertyNewSchema);
-                        }
-                    }
-                });
+            String schemaBeanName = AnalysisSchema.refName2BeanName(propertySchemaRef);
+            Schema propertyNewSchema = newSchemas.get(schemaBeanName);
+
+            if (propertyNewSchema != null && !"json".equals(propertyNewSchema.getFormat())) {
+                propertyNewSchema = this.mergeMainSchema(propertyNewSchema, newSchemas, mergedRefs);
+
+                properties.put(propertyName, propertyNewSchema);
+            }
+        });
 
         mainSchema.setProperties(properties);
         return mainSchema;
@@ -398,10 +379,9 @@ public class SpringDocOpenAPI {
      * @param validationGroupNames
      * @return null：类中不带任何@NotNull注解
      */
-    private Set<String> setSchemaNotNullRequired(
-            Schema schema, String schemaClassName, Set<String> validationGroupNames) {
-        Map<String, Set<String>> notNullGroups =
-                this.docInfo.getClass2NotNullMapping().get(schemaClassName);
+    private Set<String> setSchemaNotNullRequired(Schema schema, String schemaClassName,
+        Set<String> validationGroupNames) {
+        Map<String, Set<String>> notNullGroups = this.docInfo.getClass2NotNullMapping().get(schemaClassName);
 
         if (notNullGroups != null && notNullGroups.size() > 0) {
             Set<String> requiredFieldNames = new HashSet<>();
@@ -414,15 +394,12 @@ public class SpringDocOpenAPI {
 
             // 当前方法group对应@NotNull的group
             if (validationGroupNames != null) {
-                validationGroupNames.stream()
-                        .forEach(
-                                validationGroupName -> {
-                                    Set<String> groupRequiredFieldNames =
-                                            notNullGroups.get(validationGroupName);
-                                    if (groupRequiredFieldNames != null) {
-                                        requiredFieldNames.addAll(groupRequiredFieldNames);
-                                    }
-                                });
+                validationGroupNames.stream().forEach(validationGroupName -> {
+                    Set<String> groupRequiredFieldNames = notNullGroups.get(validationGroupName);
+                    if (groupRequiredFieldNames != null) {
+                        requiredFieldNames.addAll(groupRequiredFieldNames);
+                    }
+                });
             }
 
             // @NotNull与schema中自带required一致，则不处理
@@ -448,65 +425,38 @@ public class SpringDocOpenAPI {
      * @param notNullFields
      * @return 格式化的field group name。null：未格式化任何信息
      */
-    private Set<String> formatSchemaField(
-            Schema schema,
-            String schemaClassName,
-            String type,
-            Set<String> methodGroupNames,
-            Set<String> notNullFields) {
+    private Set<String> formatSchemaField(Schema schema, String schemaClassName, String type,
+        Set<String> methodGroupNames, Set<String> notNullFields) {
         Set<String> formatGroupNames = new HashSet<>();
 
         // 无group的字段
         FieldInfo noGroupFieldInfo =
-                Optional.ofNullable(this.docInfo.getClass2FieldMapping().get(schemaClassName))
-                        .orElse(new HashMap<>(0))
-                        .get(DocInfo.NOT_NULL_GROUP_ALL);
+            Optional.ofNullable(this.docInfo.getClass2FieldMapping().get(schemaClassName)).orElse(new HashMap<>(0))
+                .get(DocInfo.NOT_NULL_GROUP_ALL);
 
         // schema对应的group字段信息
-        List<FieldInfo> groupFieldInfos =
-                this.getGroupFieldInfos(schemaClassName, methodGroupNames);
+        List<FieldInfo> groupFieldInfos = this.getGroupFieldInfos(schemaClassName, methodGroupNames);
 
-        groupFieldInfos.forEach(
-                fieldInfo -> {
-                    Set<String> fields =
-                            type.equals("request")
-                                    ? fieldInfo.getRequestFields()
-                                    : fieldInfo.getResponseFields();
-                    Set<String> requiredFields =
-                            type.equals("request")
-                                    ? fieldInfo.getRequestRequiredFields()
-                                    : fieldInfo.getResponseRequiredFields();
-                    Set<String> exceptionFields =
-                            type.equals("request")
-                                    ? fieldInfo.getRequestExceptionFields()
-                                    : fieldInfo.getResponseExceptionFields();
+        groupFieldInfos.forEach(fieldInfo -> {
+            Set<String> fields = type.equals("request") ? fieldInfo.getRequestFields() : fieldInfo.getResponseFields();
+            Set<String> requiredFields =
+                type.equals("request") ? fieldInfo.getRequestRequiredFields() : fieldInfo.getResponseRequiredFields();
+            Set<String> exceptionFields =
+                type.equals("request") ? fieldInfo.getRequestExceptionFields() : fieldInfo.getResponseExceptionFields();
 
-                    Set<String> noGroupFields =
-                            type.equals("request")
-                                    ? noGroupFieldInfo.getRequestFields()
-                                    : noGroupFieldInfo.getResponseFields();
-                    Set<String> noGroupRequiredFields =
-                            type.equals("request")
-                                    ? noGroupFieldInfo.getRequestRequiredFields()
-                                    : noGroupFieldInfo.getResponseRequiredFields();
-                    Set<String> noGroupExceptionFields =
-                            type.equals("request")
-                                    ? noGroupFieldInfo.getRequestExceptionFields()
-                                    : noGroupFieldInfo.getResponseExceptionFields();
+            Set<String> noGroupFields =
+                type.equals("request") ? noGroupFieldInfo.getRequestFields() : noGroupFieldInfo.getResponseFields();
+            Set<String> noGroupRequiredFields = type.equals("request") ? noGroupFieldInfo.getRequestRequiredFields() :
+                noGroupFieldInfo.getResponseRequiredFields();
+            Set<String> noGroupExceptionFields = type.equals("request") ? noGroupFieldInfo.getRequestExceptionFields() :
+                noGroupFieldInfo.getResponseExceptionFields();
 
-                    // 根据group，设置schema
-                    this.setSchemaFiled(
-                            schema,
-                            fields,
-                            requiredFields,
-                            exceptionFields,
-                            noGroupFields,
-                            noGroupRequiredFields,
-                            noGroupExceptionFields,
-                            notNullFields);
+            // 根据group，设置schema
+            this.setSchemaFiled(schema, fields, requiredFields, exceptionFields, noGroupFields, noGroupRequiredFields,
+                noGroupExceptionFields, notNullFields);
 
-                    formatGroupNames.add(fieldInfo.getFileGroupName());
-                });
+            formatGroupNames.add(fieldInfo.getFileGroupName());
+        });
         return formatGroupNames;
     }
 
@@ -514,32 +464,23 @@ public class SpringDocOpenAPI {
      * 根据group对应的字段，设置schema字段信息
      *
      * @param schema
-     * @param fields 只显示的字段：设置了@Field(group="XXX")
-     * @param requiredFields 必填的字段：设置了@Field(group="XXX", required=true)
-     * @param exceptionFields 不显示的字段: 设置了@FieldException(group="XXX")
-     * @param noGroupFields 全局都可以显示的字段：设置了@Field
-     * @param noGroupRequiredFields 全局必填的字段：设置了@Field(required=true)
+     * @param fields                 只显示的字段：设置了@Field(group="XXX")
+     * @param requiredFields         必填的字段：设置了@Field(group="XXX", required=true)
+     * @param exceptionFields        不显示的字段: 设置了@FieldException(group="XXX")
+     * @param noGroupFields          全局都可以显示的字段：设置了@Field
+     * @param noGroupRequiredFields  全局必填的字段：设置了@Field(required=true)
      * @param noGroupExceptionFields 全局不显示的字段: 设置了@FieldException
-     * @param notNullFields notNull的必填字段
+     * @param notNullFields          notNull的必填字段
      */
-    private void setSchemaFiled(
-            Schema schema,
-            Set<String> fields,
-            Set<String> requiredFields,
-            Set<String> exceptionFields,
-            Set<String> noGroupFields,
-            Set<String> noGroupRequiredFields,
-            Set<String> noGroupExceptionFields,
-            Set<String> notNullFields) {
+    private void setSchemaFiled(Schema schema, Set<String> fields, Set<String> requiredFields,
+        Set<String> exceptionFields, Set<String> noGroupFields, Set<String> noGroupRequiredFields,
+        Set<String> noGroupExceptionFields, Set<String> notNullFields) {
 
         // 没有对应的group，使用原文档schema
-        if (fields.isEmpty()
-                && requiredFields.isEmpty()
-                && exceptionFields.isEmpty()
-                && noGroupFields.isEmpty()
-                && noGroupRequiredFields.isEmpty()
-                && noGroupExceptionFields.isEmpty()
-                && notNullFields.isEmpty()) {
+        if ((fields == null || fields.isEmpty()) && (requiredFields == null || requiredFields.isEmpty()) && (
+            exceptionFields == null || exceptionFields.isEmpty()) && (noGroupFields == null || noGroupFields.isEmpty())
+            && (noGroupRequiredFields == null || noGroupRequiredFields.isEmpty()) && (noGroupExceptionFields == null
+            || noGroupExceptionFields.isEmpty()) && (notNullFields == null || notNullFields.isEmpty())) {
             return;
         }
 
@@ -560,11 +501,8 @@ public class SpringDocOpenAPI {
 
             // 是否删除字段 = 标明不显示的字段 or 标明全局不显示的字段 or 有只显示的字段，且不在只显示的字段中，也不在全局可现实的字段中
             boolean isRemove =
-                    exceptionFields.contains(key)
-                            || noGroupExceptionFields.contains(key)
-                            || (fields.size() > 0
-                                    && !fields.contains(key)
-                                    && !noGroupFields.contains(key));
+                exceptionFields.contains(key) || noGroupExceptionFields.contains(key) || (fields.size() > 0
+                    && !fields.contains(key) && !noGroupFields.contains(key));
 
             if (isRemove) {
                 iterator.remove();
@@ -579,15 +517,14 @@ public class SpringDocOpenAPI {
     /**
      * 获取schema对应的group字段信息
      *
-     * @param refClassName schema对应的bean class name
+     * @param refClassName     schema对应的bean class name
      * @param methodGroupNames 接口的groupNames
      * @return
      */
     private List<FieldInfo> getGroupFieldInfos(String refClassName, Set<String> methodGroupNames) {
         // {fileGroupName, FieldInfo}
         Map<String, FieldInfo> fileGroupNames =
-                Optional.ofNullable(this.docInfo.getClass2FieldMapping().get(refClassName))
-                        .orElse(new HashMap<>(0));
+            Optional.ofNullable(this.docInfo.getClass2FieldMapping().get(refClassName)).orElse(new HashMap<>(0));
 
         // 使用交集，取出group对应的字段信息
         Set<String> resSet = new HashSet<>();

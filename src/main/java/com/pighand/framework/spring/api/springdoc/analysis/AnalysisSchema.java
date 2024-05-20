@@ -17,6 +17,10 @@ public class AnalysisSchema {
      * @return beanName
      */
     public static String refName2BeanName(String refName) {
+        if (refName == null) {
+            return null;
+        }
+
         return refName.replace("#/components/schemas/", "");
     }
 

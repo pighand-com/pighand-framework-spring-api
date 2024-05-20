@@ -4,9 +4,7 @@ import com.pighand.framework.spring.api.annotation.*;
 import com.pighand.framework.spring.api.annotation.field.*;
 import com.pighand.framework.spring.api.springdoc.analysis.info.*;
 import com.pighand.framework.spring.api.springdoc.utils.DocFieldGroupUrl;
-
 import jakarta.validation.constraints.NotNull;
-
 import org.springdoc.core.fn.RouterOperation;
 import org.springframework.util.StringUtils;
 import org.springframework.validation.annotation.Validated;
@@ -76,8 +74,7 @@ public class SpringDocRouterOperation {
 
         // 获取method的filedGroupName
         Set<String> methodFieldGroupNames =
-                analysisMethodFieldGroupNames(
-                        packageName, className, methodName, method.getAnnotations());
+            analysisMethodFieldGroupNames(packageName, className, methodName, method.getAnnotations());
 
         MethodInfo methodInfo = new MethodInfo();
         methodInfo.setCls(cls);
@@ -91,7 +88,7 @@ public class SpringDocRouterOperation {
         for (Annotation[] annotations : method.getParameterAnnotations()) {
             for (Annotation annotation : annotations) {
                 if (annotation instanceof Validated) {
-                    Class[] validatedValues = ((Validated) annotation).value();
+                    Class[] validatedValues = ((Validated)annotation).value();
                     for (Class validatedValue : validatedValues) {
                         validationGroupNames.add(validatedValue.getName());
                     }
@@ -111,10 +108,10 @@ public class SpringDocRouterOperation {
      * @param methodName
      * @param annotations
      * @return [ 用户自定义的filedGroupName(注解中设置fieldGroup)， className+methodName，
-     *     packageName+className+methodName ]
+     * packageName+className+methodName ]
      */
-    private Set<String> analysisMethodFieldGroupNames(
-            String packageName, String className, String methodName, Annotation[] annotations) {
+    private Set<String> analysisMethodFieldGroupNames(String packageName, String className, String methodName,
+        Annotation[] annotations) {
         Set<String> methodFieldGroupNames = new HashSet<>();
 
         // {className}.{methodName}
@@ -122,24 +119,23 @@ public class SpringDocRouterOperation {
 
         // {packageName}.{className}.{methodName}
         methodFieldGroupNames.add(
-                String.format(
-                        "%s.%s", className.replace(packageName, "").replace(".", ""), methodName));
+            String.format("%s.%s", className.replace(packageName, "").replace(".", ""), methodName));
 
         // 注解中fieldGroup
         for (Annotation annotation : annotations) {
             String annotationFieldGroupName = "";
             if (annotation instanceof Post) {
-                annotationFieldGroupName = ((Post) annotation).fieldGroup();
+                annotationFieldGroupName = ((Post)annotation).fieldGroup();
             } else if (annotation instanceof Put) {
-                annotationFieldGroupName = ((Put) annotation).fieldGroup();
+                annotationFieldGroupName = ((Put)annotation).fieldGroup();
             } else if (Delete.class.equals(annotation)) {
-                annotationFieldGroupName = ((Delete) annotation).fieldGroup();
+                annotationFieldGroupName = ((Delete)annotation).fieldGroup();
             } else if (annotation instanceof Get) {
-                annotationFieldGroupName = ((Get) annotation).fieldGroup();
+                annotationFieldGroupName = ((Get)annotation).fieldGroup();
             } else if (annotation instanceof Patch) {
-                annotationFieldGroupName = ((Patch) annotation).fieldGroup();
+                annotationFieldGroupName = ((Patch)annotation).fieldGroup();
             } else if (annotation instanceof FieldGroup) {
-                annotationFieldGroupName = ((FieldGroup) annotation).value();
+                annotationFieldGroupName = ((FieldGroup)annotation).value();
             }
 
             if (StringUtils.hasText(annotationFieldGroupName)) {
@@ -157,15 +153,13 @@ public class SpringDocRouterOperation {
      */
     private void analysisBean(String className) {
         try {
-            if (!className.startsWith("java.lang")
-                    && !SpringDocInfo.analysisFinishedBeans.contains(className)) {
+            if (!className.startsWith("java.lang") && !SpringDocInfo.analysisFinishedBeans.contains(className)) {
 
                 SpringDocInfo.analysisFinishedBeans.add(className);
 
                 Class cls = Class.forName(className);
 
-                List<java.lang.reflect.Field> fields =
-                        new ArrayList<>(Arrays.asList(cls.getDeclaredFields()));
+                List<java.lang.reflect.Field> fields = new ArrayList<>(Arrays.asList(cls.getDeclaredFields()));
 
                 // 获取父类字段
                 Class tmpSuperCls = cls.getSuperclass();
@@ -176,15 +170,13 @@ public class SpringDocRouterOperation {
                 }
 
                 // 组装分组信息
-                fields.forEach(
-                        field -> {
-                            String fieldName = field.getName();
+                fields.forEach(field -> {
+                    String fieldName = field.getName();
 
-                            for (Annotation annotationObject : field.getAnnotations()) {
-                                this.analysisFiledGroupNames(
-                                        className, fieldName, annotationObject);
-                            }
-                        });
+                    for (Annotation annotationObject : field.getAnnotations()) {
+                        this.analysisFiledGroupNames(className, fieldName, annotationObject);
+                    }
+                });
             }
         } catch (Exception e) {
 
@@ -198,10 +190,9 @@ public class SpringDocRouterOperation {
      * @param fieldName
      * @param annotation
      */
-    private void analysisFiledGroupNames(
-            String className, String fieldName, Annotation annotation) {
+    private void analysisFiledGroupNames(String className, String fieldName, Annotation annotation) {
         if (annotation instanceof NotNull) {
-            Class[] notNullGroups = ((NotNull) annotation).groups();
+            Class[] notNullGroups = ((NotNull)annotation).groups();
 
             if (notNullGroups.length == 0) {
                 this.setFieldNotNull(className, fieldName, DocInfo.NOT_NULL_GROUP_ALL);
@@ -212,76 +203,68 @@ public class SpringDocRouterOperation {
             }
         } else if (annotation instanceof Field) {
             // @Field
-            String[] groupNames = ((Field) annotation).value();
-            boolean required = ((Field) annotation).required();
+            String[] groupNames = ((Field)annotation).value();
+            boolean required = ((Field)annotation).required();
 
-            setClass2FieldMapping(
-                    FieldGroupType.REQUEST, className, fieldName, groupNames, required);
+            setClass2FieldMapping(FieldGroupType.REQUEST, className, fieldName, groupNames, required);
 
-            setClass2FieldMapping(
-                    FieldGroupType.RESPONSE, className, fieldName, groupNames, required);
+            setClass2FieldMapping(FieldGroupType.RESPONSE, className, fieldName, groupNames, required);
         } else if (annotation instanceof RequestField) {
             // @RequestField
-            String[] groupNames = ((RequestField) annotation).value();
-            boolean required = ((RequestField) annotation).required();
+            String[] groupNames = ((RequestField)annotation).value();
+            boolean required = ((RequestField)annotation).required();
 
-            setClass2FieldMapping(
-                    FieldGroupType.REQUEST, className, fieldName, groupNames, required);
+            setClass2FieldMapping(FieldGroupType.REQUEST, className, fieldName, groupNames, required);
         } else if (annotation instanceof ResponseField) {
             // @ResponseField
-            String[] groupNames = ((ResponseField) annotation).value();
-            boolean required = ((ResponseField) annotation).required();
+            String[] groupNames = ((ResponseField)annotation).value();
+            boolean required = ((ResponseField)annotation).required();
 
-            setClass2FieldMapping(
-                    FieldGroupType.RESPONSE, className, fieldName, groupNames, required);
+            setClass2FieldMapping(FieldGroupType.RESPONSE, className, fieldName, groupNames, required);
         } else if (annotation instanceof FieldException) {
             // @FieldException
-            String[] groupNames = ((FieldException) annotation).value();
+            String[] groupNames = ((FieldException)annotation).value();
 
-            setClass2FieldMapping(
-                    FieldGroupType.REQUEST_EXCEPTION, className, fieldName, groupNames, false);
-            setClass2FieldMapping(
-                    FieldGroupType.RESPONSE_EXCEPTION, className, fieldName, groupNames, false);
+            setClass2FieldMapping(FieldGroupType.REQUEST_EXCEPTION, className, fieldName, groupNames, false);
+            setClass2FieldMapping(FieldGroupType.RESPONSE_EXCEPTION, className, fieldName, groupNames, false);
         } else if (annotation instanceof RequestFieldException) {
             // @RequestFieldException
-            String[] groupNames = ((RequestFieldException) annotation).value();
+            String[] groupNames = ((RequestFieldException)annotation).value();
 
-            setClass2FieldMapping(
-                    FieldGroupType.REQUEST_EXCEPTION, className, fieldName, groupNames, false);
+            setClass2FieldMapping(FieldGroupType.REQUEST_EXCEPTION, className, fieldName, groupNames, false);
         } else if (annotation instanceof ResponseFieldException) {
             // @ResponseFieldException
-            String[] groupNames = ((ResponseFieldException) annotation).value();
+            String[] groupNames = ((ResponseFieldException)annotation).value();
 
-            setClass2FieldMapping(
-                    FieldGroupType.RESPONSE_EXCEPTION, className, fieldName, groupNames, false);
+            setClass2FieldMapping(FieldGroupType.RESPONSE_EXCEPTION, className, fieldName, groupNames, false);
         } else if (annotation instanceof Fields) {
             // @Fields
-            for (Field field : ((Fields) annotation).value()) {
+            for (Field field : ((Fields)annotation).value()) {
                 analysisFiledGroupNames(className, fieldName, field);
             }
         } else if (annotation instanceof RequestFields) {
             // @RequestFields
-            for (RequestField field : ((RequestFields) annotation).value()) {
+            for (RequestField field : ((RequestFields)annotation).value()) {
                 analysisFiledGroupNames(className, fieldName, field);
             }
         } else if (annotation instanceof ResponseFields) {
             // @ResponseFields
-            for (ResponseField field : ((ResponseFields) annotation).value()) {
+            for (ResponseField field : ((ResponseFields)annotation).value()) {
                 analysisFiledGroupNames(className, fieldName, field);
             }
         } else if (annotation instanceof FieldExceptions) {
             // @FieldExceptions
-            for (FieldException field : ((FieldExceptions) annotation).value()) {
+            for (FieldException field : ((FieldExceptions)annotation).value()) {
                 analysisFiledGroupNames(className, fieldName, field);
             }
         } else if (annotation instanceof RequestFieldExceptions) {
             // @RequestFieldExceptions
-            for (RequestFieldException field : ((RequestFieldExceptions) annotation).value()) {
+            for (RequestFieldException field : ((RequestFieldExceptions)annotation).value()) {
                 analysisFiledGroupNames(className, fieldName, field);
             }
         } else if (annotation instanceof ResponseFieldExceptions) {
             // @ResponseFieldExceptions
-            for (ResponseFieldException field : ((ResponseFieldExceptions) annotation).value()) {
+            for (ResponseFieldException field : ((ResponseFieldExceptions)annotation).value()) {
                 analysisFiledGroupNames(className, fieldName, field);
             }
         }
@@ -295,7 +278,7 @@ public class SpringDocRouterOperation {
      */
     private Map<String, FieldInfo> getGroupMap(String className) {
         return Optional.ofNullable(SpringDocInfo.docInfo.getClass2FieldMapping().get(className))
-                .orElse(new HashMap<>(0));
+            .orElse(new HashMap<>(0));
     }
 
     /**
@@ -307,11 +290,10 @@ public class SpringDocRouterOperation {
      */
     private void setFieldNotNull(String className, String fieldName, String notNullGroupName) {
         Map<String, Set<String>> groupMap =
-                Optional.ofNullable(SpringDocInfo.docInfo.getClass2NotNullMapping().get(className))
-                        .orElse(new HashMap<>(0));
+            Optional.ofNullable(SpringDocInfo.docInfo.getClass2NotNullMapping().get(className))
+                .orElse(new HashMap<>(0));
 
-        Set<String> fieldNames =
-                Optional.ofNullable(groupMap.get(notNullGroupName)).orElse(new HashSet<>());
+        Set<String> fieldNames = Optional.ofNullable(groupMap.get(notNullGroupName)).orElse(new HashSet<>());
         fieldNames.add(fieldName);
         groupMap.put(notNullGroupName, fieldNames);
 
@@ -323,26 +305,20 @@ public class SpringDocRouterOperation {
      *
      * <p>{className: {fileGroupName, FieldInfo}}
      *
-     * @param type FieldGroupType
+     * @param type       FieldGroupType
      * @param className
      * @param fieldName
      * @param groupNames
      * @param isRequired
      */
-    private void setClass2FieldMapping(
-            FieldGroupType type,
-            String className,
-            String fieldName,
-            String[] groupNames,
-            boolean isRequired) {
+    private void setClass2FieldMapping(FieldGroupType type, String className, String fieldName, String[] groupNames,
+        boolean isRequired) {
 
         // field group
         Map<String, FieldInfo> groupMap = this.getGroupMap(className);
 
         // no group field
-        FieldInfo allFieldInfo =
-                Optional.ofNullable(groupMap.get(DocInfo.NOT_NULL_GROUP_ALL))
-                        .orElse(new FieldInfo());
+        FieldInfo allFieldInfo = Optional.ofNullable(groupMap.get(DocInfo.NOT_NULL_GROUP_ALL)).orElse(new FieldInfo());
         allFieldInfo.setFileGroupName(DocInfo.NOT_NULL_GROUP_ALL);
 
         // 添加至所有group
@@ -357,13 +333,11 @@ public class SpringDocRouterOperation {
             this.addToFieldInfo(FieldGroupType.REQUEST, allFieldInfo, fieldName, isRequired);
         }
 
-        SpringDocInfo.docInfo.setClass2FieldMapping(
-                className, DocInfo.NOT_NULL_GROUP_ALL, allFieldInfo);
+        SpringDocInfo.docInfo.setClass2FieldMapping(className, DocInfo.NOT_NULL_GROUP_ALL, allFieldInfo);
 
         // 根据group name添加
         for (String groupName : groupNames) {
-            FieldInfo fieldInfo =
-                    Optional.ofNullable(groupMap.get(groupName)).orElse(new FieldInfo());
+            FieldInfo fieldInfo = Optional.ofNullable(groupMap.get(groupName)).orElse(new FieldInfo());
             fieldInfo.setFileGroupName(groupName);
 
             this.addToFieldInfo(type, fieldInfo, fieldName, isRequired);
@@ -380,8 +354,7 @@ public class SpringDocRouterOperation {
      * @param fieldName
      * @param isRequired
      */
-    private void addToFieldInfo(
-            FieldGroupType type, FieldInfo fieldInfo, String fieldName, boolean isRequired) {
+    private void addToFieldInfo(FieldGroupType type, FieldInfo fieldInfo, String fieldName, boolean isRequired) {
         switch (type) {
             case REQUEST -> {
                 fieldInfo.getRequestFields().add(fieldName);
